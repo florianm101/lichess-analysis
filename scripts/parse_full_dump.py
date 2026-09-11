@@ -3,15 +3,24 @@
 Grab a file from https://database.lichess.org (~30 GB compressed per month,
 ~100M games), then:
 
-    python parse_full_dump.py lichess_db_standard_rated_2026-06.pgn.zst games_big.csv --limit 500000 --every 50
+    python parse_full_dump.py lichess_db_standard_rated_2026-06.pgn.zst games_big.csv --limit 500000 --every 200
 
 Memory use is constant regardless of file size: the zstd stream is decoded on
 the fly and only headers are parsed (roughly 10x faster than full game parsing;
 move counts require full parsing, which this deliberately skips).
-
-Sampling note: the dump is ordered by end time, so taking the first N games is
-a time-of-day/weekday-biased slice. Use --every k to take every k-th game
-instead, and set --limit to cap the output size.
+ 
+Sampling note, stated precisely because the obvious reading is wrong. The dump
+is ordered by end time, so the first N games are a time-of-day/weekday-biased
+slice. --every k thins that slice but does not escape it: the script stops once
+--limit games have been written, so it reads only the first (limit * k) eligible
+games and never sees the rest of the month.
+ 
+Choose k against the dump's total game count, not arbitrarily. A month holds
+roughly 100M games, so --limit 500000 --every 200 spans the full month, while
+--every 50 covers only its first quarter, about the first week, with the
+weekday skew still intact. The script cannot pick k for you: the total is
+unknown without a counting pass over the whole file, which would double the
+runtime.
 
 Schema differences vs the 20k API scrape used in the notebook:
   - TimeControl is "base_seconds+inc" (seconds, not minutes)
@@ -34,6 +43,15 @@ COLS = [
 
 RESULT_MAP = {"1-0": "white", "0-1": "black", "1/2-1/2": "draw"}
 
+def is_rated(headers) -> bool:
+    """Lichess writes Event as e.g. 'Rated Blitz game' or 'Casual Bullet game'.
+ 
+    Tournament games follow the same convention ('Rated Blitz tournament ...'),
+    so the leading word is the reliable signal.
+    The standard_rated dumps are all rated, but pointing this at a full
+    `standard` dump would otherwise silently label every casual game as rated.
+    """
+    return headers.get("Event", "").strip().lower().startswith("rated")
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -68,7 +86,7 @@ def main() -> None:
             if seen % args.every:
                 continue
             writer.writerow([
-                "TRUE",
+                "TRUE" if is_rated(headers) else "FALSE",
                 headers.get("Termination", "").lower(),
                 winner,
                 headers.get("TimeControl", ""),
