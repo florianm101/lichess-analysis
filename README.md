@@ -1,6 +1,6 @@
 # Lichess games: exploratory analysis + win prediction
 
-Exploratory analysis of ~19k real Lichess games and a logistic-regression model
+Exploratory analysis of ~15.5k real Lichess games and a logistic-regression model
 for P(White wins), evaluated against the raw Elo formula as a baseline.
 
 ## Headline findings
@@ -42,7 +42,7 @@ setup needed.
 The ~20k-game dataset collected via the Lichess API (the well-known Kaggle
 "Chess Game Dataset", mirrored by [TidyTuesday](https://github.com/rfordatascience/tidytuesday/tree/master/data/2024/2024-10-01)).
 Caveats: it is a convenience sample of API-active users, skews ~1400–1800
-rated, and is ~85% rapid time control — so per-opening estimates are thin and
+rated, and is ~85% rapid time control; so per-opening estimates are thin and
 time-control comparisons are impossible. Directional patterns reproduce in the
 full dump; exact percentages will wobble.
 
@@ -51,7 +51,7 @@ To scale up, download a month from [database.lichess.org](https://database.liche
 
 ```bash
 python scripts/parse_full_dump.py lichess_db_standard_rated_2026-06.pgn.zst games_big.csv \
-    --limit 500000 --every 50
+    --limit 500000 --every 200
 ```
 
 Constant memory use; headers-only parsing. See the script docstring for schema
